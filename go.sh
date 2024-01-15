@@ -1,1 +1,1 @@
-gcc -o airodump airodump-hs.c -lpcap && sudo ./airodump mon0
+gcc -o airodump airodump-ch.c -lpcap && sudo ./airodump mon0
