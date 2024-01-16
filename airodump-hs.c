@@ -4,15 +4,9 @@
 #include <signal.h>
 #include <time.h>
 
-#define WAIT_TIME 200
-#define TIME_THRESHOLD 1000
+#define WAIT_TIME 300
+#define TIME_THRESHOLD 1500
 #define MAX_SSID_NUM 50
-
-struct radiotap_header{
-	uint8_t it_rev;
-	uint8_t it_pad;
-	uint16_t it_len;
-};
 
 struct Data{
 	u_char bssid[6];
@@ -57,7 +51,7 @@ int main(int argc, char ** argv){
 		}
 	}
 	else{
-		printf("Put device name in argv\n");
+		printf("Put interface name in argv\n");
 	}
 
 	return 0;
@@ -75,9 +69,6 @@ void show(unsigned int ch){
 		printf("%d\t", data_list[i]->channel_num);
 		printf("%s\n", data_list[i]->ssid);
 	}
-	
-	//printf("------------------------\n");
-	
 }
 
 long long current_millisec(){
@@ -92,8 +83,6 @@ long long current_millisec(){
 void hope_channel(char *dev, int ch){
 	char command[100];
 	snprintf(command, sizeof(command), "sudo iwconfig %s channel %d", dev, ch);
-	//printf("[DEBUG] Channel hoped to %d \n",ch);
-	//printf("command:%s", command);
 	system(command);
 }
 
@@ -107,11 +96,8 @@ void add_data(struct Data *data){
 		data_list_len ++;
 	} else{
 		free(data);
-		//printf("MAX_SSID_NUM reached!\n");
 	}
 }
-
-
 
 int find_data(struct Data *data){
 	int find = 1;
@@ -162,7 +148,6 @@ void process_packet(char  *erbuf, char *dev, char *filter, pcap_t *handle,unsign
 
 		long long current = current_millisec();
 		long long time_interval = current - before;
-		//printf("time_interval: %lld \n", time_interval);
 		start_from_now = current - start_time;
 
 		if(packet == NULL)
@@ -172,7 +157,6 @@ void process_packet(char  *erbuf, char *dev, char *filter, pcap_t *handle,unsign
 		
 		int idx = find_data(temp_data);
 
-		//printf("find_data result: %d \n", idx);
 		
 
 		
@@ -183,23 +167,12 @@ void process_packet(char  *erbuf, char *dev, char *filter, pcap_t *handle,unsign
 			count_up(idx);
 			free(temp_data);
 		}
-		
-		/*
-		fprintf(stdout, "PWR: %d dBm\n", temp_data->pwr);
-		fprintf(stdout, "CH: %d\n", temp_data->channel_num);
-		fprintf(stdout, "ESSID string: %s\n", temp_data->ssid);
-		fprintf(stdout, "Beacons: %d\n", temp_data->beacons);
-		fprintf(stdout, "bssid stirng: %02x:%02x:%02x:%02x:%02x:%02x\n", temp_data->bssid[0], temp_data->bssid[1], temp_data->bssid[2], temp_data->bssid[3], temp_data->bssid[4], temp_data->bssid[5]);*/
-		
 	
 		show(ch);
-
 
 		if(time_interval > WAIT_TIME) break;
 
 	}while(start_from_now < TIME_THRESHOLD);
-	//pcap_dispatch(handle, 1, packet_handler, NULL);
-
 	
 }
 
@@ -217,12 +190,9 @@ struct Data *packet_handler(struct pcap_pkthdr *pkthdr, const u_char *packet){
 	const u_char *bssid;
 	unsigned int essid_len;
 
-	struct radiotap_header *rtaphdr;
 	struct Data *data = malloc(sizeof(struct Data));
 
-	rtaphdr = (struct radiotap_header *) packet;
-
-	bssid = packet + 40;// on beacon frame HIGHLIGHT
+	bssid = packet + 40;
 	essid = packet + 62;
 	essid_len = *(packet + 61);
 	pwr = packet + 22;// on radiotap header
@@ -233,7 +203,6 @@ struct Data *packet_handler(struct pcap_pkthdr *pkthdr, const u_char *packet){
 	data->channel_num = (channelFreq - 2407) / 5;
 
 	data->beacons = 1;
-	//printf("ch: %d\n", channel_num);
 
 	data->ssid = malloc(essid_len * sizeof(u_char)+1);
 	unsigned int i = 0;
@@ -248,13 +217,6 @@ struct Data *packet_handler(struct pcap_pkthdr *pkthdr, const u_char *packet){
 		data->bssid[i] = *(bssid+i);
 	}
 
-	/*
-	fprintf(stdout, "PWR: %d dBm\n", data->pwr);
-	fprintf(stdout, "AP Frequency: %iMhz\n", channelFreq);
-	fprintf(stdout, "ESSID length: %i bytes\n", data->essidLen[0]);
-	fprintf(stdout, "ESSID string: %s\n", data->ssid);
-	fprintf(stdout, "BSSID stirng: %02X:%02X:%02X:%02X:%02X:%02X\n", data->bssid[0], data->bssid[1], data->bssid[2], data->bssid[3], data->bssid[4], data->bssid[5]);
-*/
 	return data;
 }	
 
